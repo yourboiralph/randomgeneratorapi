@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import prisma from "@/lib/db";
 import crypto from "node:crypto";
 
@@ -6,10 +7,13 @@ function sha256(input: string) {
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const url = new URL(_req.url);
-  const apiKey = url.searchParams.get("api_key");
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params; // ✅ Next 15/16
 
+  const apiKey = req.nextUrl.searchParams.get("api_key");
   if (!apiKey) {
     return NextResponse.json({ error: "api_key required" }, { status: 401 });
   }
@@ -27,7 +31,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
   // only allow reading requests made by THIS api key
   const reqRow = await prisma.randomRequest.findFirst({
-    where: { id: params.id, apiKeyId: key.id },
+    where: { id, apiKeyId: key.id },
     select: { id: true, type: true, min: true, max: true, result: true, createdAt: true },
   });
 
