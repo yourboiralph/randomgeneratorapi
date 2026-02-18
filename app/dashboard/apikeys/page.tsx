@@ -1,5 +1,7 @@
 "use client";
 
+import { authClient } from "@/lib/auth/auth-client";
+import { redirect } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -15,9 +17,30 @@ type ApiKeyRow = {
 };
 
 export default function ApiKeysPage() {
+  const [session, setSession] = useState<any>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
   const [keys, setKeys] = useState<ApiKeyRow[]>([]);
   const [loading, setLoading] = useState(true);
-
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await authClient.getSession();
+        setSession(s);
+        console.log("session:", s); // ✅ check browser console
+      } catch (e) {
+        console.log("getSession failed", e);
+      } finally {
+        setSessionLoading(false);
+      }
+    })();
+  }, [])
+  // optional: block page if not logged in
+  useEffect(() => {
+    if (!sessionLoading && !session?.user) {
+      toast.error("Please login first.");
+      // window.location.href = "/login"; // or router.push("/login")
+    }
+  }, [sessionLoading, session]);
   const [creating, setCreating] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
 
@@ -145,11 +168,10 @@ export default function ApiKeysPage() {
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-sm">{k.prefix}…</span>
                     <span
-                      className={`text-xs rounded-full px-2 py-0.5 border ${
-                        k.status === "ACTIVE"
+                      className={`text-xs rounded-full px-2 py-0.5 border ${k.status === "ACTIVE"
                           ? "border-green-300 text-green-700 bg-green-50"
                           : "border-gray-300 text-gray-600 bg-gray-50"
-                      }`}
+                        }`}
                     >
                       {k.status}
                     </span>
@@ -181,7 +203,7 @@ export default function ApiKeysPage() {
       <div className="mt-6 rounded-2xl border p-4">
         <h3 className="font-semibold">How to use</h3>
         <pre className="mt-2 text-xs bg-gray-50 border rounded-lg p-3 overflow-auto">
-{`POST /api/random
+          {`POST /api/random
 {
   "api_key": "rng_live_....",
   "min": 0,
