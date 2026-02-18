@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String   @id
+  name          String
+  email         String
+  emailVerified Boolean
+  image         String?
+  createdAt     DateTime
+  updatedAt     DateTime
+
+  sessions Session[]
+  accounts Account[]
+  apiKeys  ApiKey[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+}
+
+model ApiKey {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // store only hashed key in DB (never store raw key)
+  keyHash String       @unique
+  prefix  String // first ~8 chars of raw key (for UI)
+  name    String? // optional label
+  status  ApiKeyStatus @default(ACTIVE)
+
+  // limits
+  dailyLimit  Int  @default(1000)
+  minuteLimit Int? // optional
+
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  usages ApiKeyUsage[]
+  requests      RandomRequest[]   // 👈 ADD THIS
+
+  @@index([userId])
+}
+
+model ApiKeyUsage {
+  id       String @id @default(cuid())
+  apiKeyId String
+  apiKey   ApiKey @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  day   DateTime // store as start-of-day UTC
+  count Int      @default(0)
+
+  @@unique([apiKeyId, day])
+  @@index([day])
+}
+
+
+enum RandomType {
+  FLOAT
+  INTEGER
+}
+
+model RandomRequest {
+  id        String     @id @default(cuid())
+  apiKeyId  String
+  apiKey    ApiKey     @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  type      RandomType @default(FLOAT)
+  min       Float
+  max       Float
+  result    Float
+
+  createdAt DateTime   @default(now())
+
+  @@index([apiKeyId, createdAt])
+}
