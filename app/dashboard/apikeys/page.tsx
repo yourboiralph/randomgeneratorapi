@@ -37,6 +37,7 @@ export default function ApiKeysPage() {
   // optional: block page if not logged in
   useEffect(() => {
     if (!sessionLoading && !session?.user) {
+      redirect("/verify")
       toast.error("Please login first.");
       // window.location.href = "/login"; // or router.push("/login")
     }
