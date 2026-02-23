@@ -63,10 +63,10 @@ export default function Home() {
               </Link>
 
               <a
-                href="#how"
+                href="/pricing"
                 className="inline-flex h-11 items-center justify-center rounded-2xl border bg-white/60 px-5 text-sm font-medium backdrop-blur transition hover:bg-white/80 dark:bg-black/30 dark:hover:bg-black/40"
               >
-                How it works
+                Pricing
               </a>
             </div>
 

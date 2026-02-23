@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth/auth-client";
 
@@ -12,6 +12,10 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+    useEffect(() => {
+      redirect('/')
+    }, [])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
