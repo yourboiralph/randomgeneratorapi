@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
+import { useMemo, useRef, useState } from "react";
 
 type LookupResult = {
   id: string;
@@ -17,10 +16,31 @@ function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
+type Notice = {
+  type: "success" | "error" | "info";
+  message: string;
+} | null;
+
 export default function LookupPage() {
   const [id, setId] = useState("");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<LookupResult | null>(null);
+
+  // ✅ inline status UI (replaces toast)
+  const [notice, setNotice] = useState<Notice>(null);
+  const noticeTimer = useRef<number | null>(null);
+
+  function showNotice(next: Notice, ms = 3000) {
+    setNotice(next);
+
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    if (next) {
+      noticeTimer.current = window.setTimeout(() => {
+        setNotice(null);
+        noticeTimer.current = null;
+      }, ms);
+    }
+  }
 
   const prettyCreatedAt = useMemo(() => {
     if (!data?.createdAt) return "";
@@ -32,18 +52,19 @@ export default function LookupPage() {
   }, [data?.createdAt]);
 
   async function lookup() {
-    if (!id.trim()) {
-      toast.error("Please enter an ID");
+    const clean = id.trim();
+
+    if (!clean) {
+      showNotice({ type: "error", message: "Please enter an ID." }, 3500);
       return;
     }
 
     setLoading(true);
     setData(null);
+    setNotice(null);
 
     try {
-      const res = await fetch(
-        `/api/random/lookup?id=${encodeURIComponent(id.trim())}`
-      );
+      const res = await fetch(`/api/random/lookup?id=${encodeURIComponent(clean)}`);
       const json = await res.json();
 
       if (!res.ok) {
@@ -51,9 +72,9 @@ export default function LookupPage() {
       }
 
       setData(json);
-      toast.success("Found!");
+      showNotice({ type: "success", message: "Found!" }, 2200);
     } catch (e: any) {
-      toast.error(e.message || "Lookup failed");
+      showNotice({ type: "error", message: e?.message || "Lookup failed" }, 4500);
     } finally {
       setLoading(false);
     }
@@ -82,16 +103,40 @@ export default function LookupPage() {
               RNG Lookup
             </div>
 
-            <h1 className="mt-3 text-3xl font-bold tracking-tight">
-              Lookup RNG Result
-            </h1>
+            <h1 className="mt-3 text-3xl font-bold tracking-tight">Lookup RNG Result</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Paste a request ID to fetch the exact min/max + generated result.
             </p>
           </div>
 
           {/* Search Card */}
-          <div className="rounded-3xl border bg-white/70 p-5 shadow-sm backdrop-blur dark:bg-black/35 ">
+          <div className="rounded-3xl border bg-white/70 p-5 shadow-sm backdrop-blur dark:bg-black/35">
+            {/* ✅ Inline notice (modern, no toast) */}
+            {notice && (
+              <div
+                className={cn(
+                  "mb-4 rounded-2xl border px-4 py-3 text-sm backdrop-blur",
+                  "animate-in fade-in slide-in-from-top-1 duration-200",
+                  notice.type === "success" &&
+                    "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+                  notice.type === "error" &&
+                    "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300",
+                  notice.type === "info" &&
+                    "border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300"
+                )}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 break-words">{notice.message}</span>
+                  <button
+                    onClick={() => setNotice(null)}
+                    className="shrink-0 rounded-xl border bg-white/60 px-2 py-1 text-xs font-medium backdrop-blur transition hover:bg-white/80 dark:bg-black/30 dark:hover:bg-black/40"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
               <div className="flex-1 space-y-2">
                 <label className="text-sm font-medium">Request ID</label>
@@ -162,9 +207,7 @@ export default function LookupPage() {
                       {data.keyPrefix}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground break-all">
-                    ID: {data.id}
-                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground break-all">ID: {data.id}</p>
                 </div>
 
                 <span className="w-fit rounded-full border bg-white/60 px-3 py-1 text-xs backdrop-blur dark:bg-black/30">
@@ -179,13 +222,15 @@ export default function LookupPage() {
                 <div className="col-span-2 rounded-2xl border bg-gradient-to-br from-indigo-600/10 via-fuchsia-600/10 to-cyan-600/10 p-4">
                   <div className="text-xs text-muted-foreground">Result</div>
                   <div className="mt-1 flex items-end justify-between gap-3">
-                    <div className="text-3xl font-bold tracking-tight">
-                      {data.result}
-                    </div>
+                    <div className="text-3xl font-bold tracking-tight">{data.result}</div>
                     <button
-                      onClick={() => {
-                        navigator.clipboard?.writeText(String(data.result));
-                        toast.success("Copied result!");
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard?.writeText(String(data.result));
+                          showNotice({ type: "success", message: "Copied result!" }, 1800);
+                        } catch {
+                          showNotice({ type: "error", message: "Copy failed. Please copy manually." }, 3500);
+                        }
                       }}
                       className="rounded-xl border bg-white/60 px-3 py-2 text-xs font-medium backdrop-blur transition hover:bg-white/80 dark:bg-black/30 dark:hover:bg-black/40"
                     >
