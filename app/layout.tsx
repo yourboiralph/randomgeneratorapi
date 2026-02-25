@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Trust RNG",
-  description: "Auditable Random Number Generator",
+  title: "TrustRNG - Random Number Generator",
+  description: "Validate and audit random generated numbers.",
 };
 
 export default function RootLayout({
